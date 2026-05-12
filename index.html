@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Flood Risk Visualizer 🌧️🌍</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      background: radial-gradient(circle at top, #1f2933, #020617);
+      color: #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .app-container {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+      gap: 24px;
+      max-width: 1200px;
+      width: 100%;
+      backdrop-filter: blur(10px);
+    }
+
+    @media (max-width: 900px) {
+      .app-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 18px;
+      padding: 20px 22px;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .card-header {
+      margin-bottom: 16px;
+    }
+
+    .title {
+      font-size: 1.4rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .subtitle {
+      margin-top: 4px;
+      font-size: 0.85rem;
+      color: #9ca3af;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      border: 1px solid rgba(56, 189, 248, 0.5);
+      color: #e0f2fe;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 14px;
+      margin-top: 10px;
+    }
+
+    @media (max-width: 700px) {
+      form {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.8rem;
+    }
+
+    .field label {
+      color: #cbd5f5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: #6b7280;
+    }
+
+    input, select {
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 10px;
+      border: 1px solid rgba(75, 85, 99, 0.9);
+      padding: 7px 9px;
+      color: #e5e7eb;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border 0.15s, box-shadow 0.15s, transform 0.08s;
+    }
+
+    input:focus, select:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+      transform: translateY(-1px);
+    }
+
+    .full-span {
+      grid-column: 1 / -1;
+    }
+
+    .actions {
+      margin-top: 10px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 8px 16px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: linear-gradient(135deg, #38bdf8, #4f46e5);
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 12px 25px rgba(56, 189, 248, 0.35);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 30px rgba(56, 189, 248, 0.45);
+    }
+
+    button:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(56, 189, 248, 0.3);
+      opacity: 0.95;
+    }
+
+    .result-box {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      font-size: 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 40px;
+    }
+
+    .result-label {
+      font-weight: 500;
+      color: #9ca3af;
+      font-size: 0.8rem;
+    }
+
+    .result-value {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .result-low {
+      color: #4ade80;
+    }
+
+    .result-high {
+      color: #f87171;
+    }
+
+    .result-neutral {
+      color: #e5e7eb;
+    }
+
+    /* Right side: Earth Visualization */
+    .visual-card {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .earth-wrapper {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 6px;
+    }
+
+    .earth {
+      width: 100%;
+      max-width: 320px;
+      aspect-ratio: 1 / 1;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.18), transparent 55%),
+        radial-gradient(circle at 80% 80%, rgba(56,189,248,0.38), transparent 60%),
+        radial-gradient(circle at 50% 120%, #020617, #020617),
+        radial-gradient(circle at 50% 50%, #075985, #0f172a 60%, #020617 85%);
+      box-shadow:
+        0 0 25px rgba(56, 189, 248, 0.5),
+        0 0 80px rgba(59, 130, 246, 0.45);
+      position: relative;
+      overflow: hidden;
+      animation: rotateEarth 26s linear infinite;
+    }
+
+    @keyframes rotateEarth {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .earth::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        radial-gradient(circle at 40% 30%, rgba(30, 64, 175, 0.7), transparent 50%),
+        radial-gradient(circle at 20% 70%, rgba(22, 163, 74, 0.7), transparent 50%),
+        radial-gradient(circle at 70% 40%, rgba(22, 101, 52, 0.6), transparent 40%);
+      mix-blend-mode: screen;
+      opacity: 0.9;
+    }
+
+    .earth::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 20% 10%, rgba(255, 255, 255, 0.25), transparent 55%);
+      mix-blend-mode: soft-light;
+    }
+
+    .glow-ring {
+      position: absolute;
+      width: 105%;
+      height: 105%;
+      border-radius: 50%;
+      border: 1px dashed rgba(148, 163, 184, 0.5);
+      animation: pulseRing 3.5s ease-in-out infinite;
+    }
+
+    @keyframes pulseRing {
+      0% { transform: scale(1); opacity: 0.7; }
+      50% { transform: scale(1.03); opacity: 1; }
+      100% { transform: scale(1); opacity: 0.7; }
+    }
+
+    .alert-overlay {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, rgba(248, 113, 113, 0.28), transparent 65%);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.18s ease-out;
+    }
+
+    .earth.alert .alert-overlay {
+      opacity: 1;
+    }
+
+    .location-dot {
+      position: absolute;
+      width: 11px;
+      height: 11px;
+      border-radius: 999px;
+      background: #f97316;
+      box-shadow:
+        0 0 6px rgba(249, 115, 22, 0.9),
+        0 0 16px rgba(239, 68, 68, 0.7);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    .location-dot.visible {
+      opacity: 1;
+    }
+
+    .location-ping {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      border: 1px solid rgba(248, 250, 252, 0.8);
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .location-ping.visible {
+      opacity: 1;
+      animation: ping 1.8s ease-out infinite;
+    }
+
+    @keyframes ping {
+      0% { transform: translate(-50%, -50%) scale(0.6); opacity: 0.8; }
+      80% { transform: translate(-50%, -50%) scale(1.7); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+    }
+
+    .visual-caption {
+      margin-top: 10px;
+      font-size: 0.8rem;
+      color: #9ca3af;
+      line-height: 1.4;
+    }
+
+    .legend {
+      margin-top: 8px;
+      font-size: 0.75rem;
+      display: flex;
+      gap: 12px;
+      color: #9ca3af;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .legend-dot.high {
+      background: #f97316;
+      box-shadow: 0 0 6px rgba(248, 113, 113, 0.7);
+    }
+
+    .legend-dot.earth {
+      background: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Left: Form -->
+    <div class="card">
+      <div class="card-header">
+        <div class="title">
+          🌧️ Flood Risk Predictor
+          <span class="badge">Vertex AI · XGBoost</span>
+        </div>
+        <div class="subtitle">
+          Enter local environmental conditions to estimate flood risk and visualize the hotspot on Earth.
+        </div>
+      </div>
+
+      <form id="predictForm">
+        <div class="field">
+          <label>Latitude <span class="hint">e.g., 9.97</span></label>
+          <input id="latitude" type="number" step="0.0001" required />
+        </div>
+
+        <div class="field">
+          <label>Longitude <span class="hint">e.g., 76.28</span></label>
+          <input id="longitude" type="number" step="0.0001" required />
+        </div>
+
+        <div class="field">
+          <label>Rainfall (mm)</label>
+          <input id="rainfall_mm" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>Temperature (°C)</label>
+          <input id="temperature_c" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>Humidity (%)</label>
+          <input id="humidity_pct" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>River Discharge (m³/s)</label>
+          <input id="river_discharge_m3s" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>Water Level (m)</label>
+          <input id="water_level_m" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>Elevation (m)</label>
+          <input id="elevation_m" type="number" step="0.1" required />
+        </div>
+
+        <div class="field">
+          <label>Land Cover <span class="hint">encoded (e.g., 0–4)</span></label>
+          <input id="land_cover" type="number" step="1" required />
+        </div>
+
+        <div class="field">
+          <label>Soil Type <span class="hint">encoded (e.g., 0–4)</span></label>
+          <input id="soil_type" type="number" step="1" required />
+        </div>
+
+        <div class="field">
+          <label>Population Density</label>
+          <input id="population_density" type="number" step="1" required />
+        </div>
+
+        <div class="field">
+          <label>Infrastructure <span class="hint">0 = low, 1 = high</span></label>
+          <input id="infrastructure" type="number" step="1" required />
+        </div>
+
+        <div class="field full-span">
+          <label>Historical Floods <span class="hint">count of past floods</span></label>
+          <input id="historical_floods" type="number" step="1" required />
+        </div>
+
+        <div class="actions full-span">
+          <button type="submit">
+            ⚡ Predict Flood Risk
+          </button>
+          <div style="font-size:0.75rem;color:#6b7280;">
+            Powered by Vertex AI model deployed on Cloud Run.
+          </div>
+        </div>
+      </form>
+
+      <div class="result-box">
+        <div class="result-label">Risk status</div>
+        <div id="result" class="result-value result-neutral">
+          Awaiting input…
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Earth Visualization -->
+    <div class="card visual-card">
+      <div class="card-header">
+        <div class="title">
+          🌍 Live Flood Hotspot
+        </div>
+        <div class="subtitle">
+          Your coordinates are projected onto a stylized Earth. High-risk zones pulse in warning red.
+        </div>
+      </div>
+
+      <div class="earth-wrapper">
+        <div class="glow-ring"></div>
+        <div class="earth" id="earth">
+          <div class="alert-overlay"></div>
+          <div class="location-dot" id="locationDot"></div>
+          <div class="location-ping" id="locationPing"></div>
+        </div>
+      </div>
+
+      <div class="visual-caption">
+        The dot marks the approximate location from latitude and longitude. When the model predicts high flood
+        risk, the globe glows and the location pulses.
+      </div>
+
+      <div class="legend">
+        <span><span class="legend-dot earth"></span> Earth projection</span>
+        <span><span class="legend-dot high"></span> High flood risk hotspot</span>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const form = document.getElementById("predictForm");
+    const resultDiv = document.getElementById("result");
+    const earth = document.getElementById("earth");
+    const dot = document.getElementById("locationDot");
+    const ping = document.getElementById("locationPing");
+
+    const API_URL = " https://flood-risk-backend-v2-597320691578.us-central1.run.app/predict ";
+
+    function latLonToXY(lat, lon) {
+      const x = (lon + 180) / 360;
+      const y = (90 - lat) / 180;
+      return { x, y };
+    }
+
+    function updateDot(lat, lon) {
+      const { x, y } = latLonToXY(lat, lon);
+      dot.style.left = (x * 100) + "%";
+      dot.style.top = (y * 100) + "%";
+      ping.style.left = dot.style.left;
+      ping.style.top = dot.style.top;
+      dot.classList.add("visible");
+      ping.classList.add("visible");
+    }
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      resultDiv.textContent = "Predicting… ⏳";
+      resultDiv.className = "result-value result-neutral";
+
+      const FEATURES = {
+        latitude,
+        longitude,
+        rainfall_mm,
+        temperature_c,
+        humidity_pct,
+        river_discharge_m3s,
+        water_level_m,
+        elevation_m,
+        land_cover,
+        soil_type,
+        population_density,
+        infrastructure,
+        historical_floods
+      };
+
+      let instance = {};
+      for (let key in FEATURES) {
+        const el = FEATURES[key];
+        const raw = el.value.trim();
+
+        if (raw === "") {
+          resultDiv.textContent = `❌ Missing field: ${key}`;
+          resultDiv.className = "result-value result-neutral";
+          earth.classList.remove("alert");
+          dot.classList.remove("visible");
+          ping.classList.remove("visible");
+          return;
+        }
+
+        instance[key] = Number(raw);
+      }
+
+      const payload = { instances: [instance] };
+      console.log("Sending payload:", payload);
+
+      try {
+        const res = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        console.log("API response:", data);
+
+        if (data.error) {
+          resultDiv.textContent = "Error: " + data.error;
+          resultDiv.className = "result-value result-neutral";
+          earth.classList.remove("alert");
+          dot.classList.remove("visible");
+          ping.classList.remove("visible");
+          return;
+        }
+
+        const prediction = data.predictions ? data.predictions[0] : null;
+
+        // Update dot position regardless of risk
+        updateDot(instance.latitude, instance.longitude);
+
+        if (prediction === 1 || prediction === "Yes") {
+          resultDiv.textContent = "🚨 High Flood Risk Detected!";
+          resultDiv.className = "result-value result-high";
+          earth.classList.add("alert");
+        } else if (prediction === 0 || prediction === "No") {
+          resultDiv.textContent = "✅ Low Flood Risk (No Flood)";
+          resultDiv.className = "result-value result-low";
+          earth.classList.remove("alert");
+        } else {
+          resultDiv.textContent = "Result: " + JSON.stringify(data);
+          resultDiv.className = "result-value result-neutral";
+          earth.classList.remove("alert");
+        }
+      } catch (err) {
+        console.error(err);
+        resultDiv.textContent = "Network error: " + err.message;
+        resultDiv.className = "result-value result-neutral";
+        earth.classList.remove("alert");
+        dot.classList.remove("visible");
+        ping.classList.remove("visible");
+      }
+    });
+  </script>
+</body>
+</html>
